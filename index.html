@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cyber Serpent — Cyber Academy</title>
+  <style>
+    :root { color-scheme: dark; --ink:#eaf6ff; --muted:#94a9bc; --cyan:#45f1df; --blue:#5895ff; --danger:#ff5f79; --panel:rgba(12, 28, 48, .88); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:#071323 radial-gradient(circle at 15% 15%,#12365a 0,transparent 29rem),radial-gradient(circle at 85% 80%,#18295b 0,transparent 27rem); display:grid; place-items:center; padding:24px; }
+    .app { width:min(100%, 960px); display:grid; grid-template-columns:minmax(310px, 580px) minmax(250px, 1fr); gap:28px; align-items:center; }
+    .brand { letter-spacing:.16em; color:var(--cyan); font-size:.72rem; font-weight:800; text-transform:uppercase; }
+    h1 { margin:.35rem 0 .4rem; font-size:clamp(2rem, 5vw, 3.6rem); line-height:.98; letter-spacing:-.06em; }
+    .intro { margin:0 0 1.25rem; color:var(--muted); max-width:37rem; line-height:1.5; }
+    .game-shell { position:relative; border:1px solid rgba(115,211,255,.28); border-radius:22px; overflow:hidden; box-shadow:0 28px 80px rgba(0,0,0,.35); background:#081a2e; }
+    canvas { display:block; width:100%; aspect-ratio:1; image-rendering:pixelated; }
+    .hud { position:absolute; inset:0 0 auto; display:flex; justify-content:space-between; align-items:center; padding:14px 16px; pointer-events:none; font-size:.76rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; text-shadow:0 1px 3px #000; }
+    .hud span { color:var(--cyan); }
+    .side { background:var(--panel); border:1px solid rgba(139,187,232,.18); border-radius:22px; padding:24px; backdrop-filter:blur(10px); }
+    .side h2 { margin:0 0 12px; font-size:1.15rem; }
+    .side p, .side li { color:var(--muted); line-height:1.55; font-size:.94rem; }
+    .side ul { padding-left:1.1rem; margin:0 0 22px; }
+    button { border:0; border-radius:12px; color:#062135; background:var(--cyan); cursor:pointer; font:800 .9rem inherit; padding:13px 18px; box-shadow:0 8px 25px rgba(69,241,223,.25); transition:transform .15s,filter .15s; }
+    button:hover, button:focus-visible { transform:translateY(-2px); filter:brightness(1.08); outline:2px solid white; outline-offset:3px; }
+    .overlay { position:absolute; inset:0; z-index:3; display:grid; place-items:center; padding:20px; background:rgba(2,11,22,.78); backdrop-filter:blur(6px); }
+    .card { width:min(100%, 500px); background:#102844; border:1px solid rgba(103,213,255,.35); border-radius:18px; padding:25px; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+    .tag { font-size:.71rem; color:var(--cyan); font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .card h2 { margin:8px 0 18px; font-size:1.3rem; line-height:1.3; }
+    .choices { display:grid; gap:9px; }
+    .choice { text-align:left; padding:12px 14px; background:#183859; color:var(--ink); box-shadow:none; font-weight:650; font-size:.88rem; }
+    .choice:hover { background:#245176; }
+    .hidden { display:none; }
+    .result-score { font-size:3.3rem; line-height:1; margin:14px 0; color:var(--cyan); font-weight:900; letter-spacing:-.07em; }
+    .result-detail { color:var(--muted); line-height:1.5; margin-bottom:20px; }
+    .keys { display:inline-grid; grid-template-columns:repeat(3, 25px); gap:5px; vertical-align:middle; margin-left:5px; }
+    .keys i { border:1px solid #52718f; border-radius:5px; height:22px; font-style:normal; font-size:.68rem; display:grid; place-items:center; color:#cce4f7; }
+    .keys i:nth-child(1) { grid-column:2; } .keys i:nth-child(2) { grid-column:1; } .keys i:nth-child(3) { grid-column:2; } .keys i:nth-child(4) { grid-column:3; }
+    @media (max-width:760px) { .app { grid-template-columns:1fr; max-width:580px; } .side { padding:20px; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section>
+      <div class="brand">Cyber Academy · Évaluation ludique</div>
+      <h1>Le Cyber<br>Serpent.</h1>
+      <p class="intro">Mangez 10 briques, répondez aux défis et validez vos compétences cyber.</p>
+      <div class="game-shell">
+        <canvas id="game" width="600" height="600" aria-label="Jeu du serpent"></canvas>
+        <div class="hud"><div>Briques <span id="progress">0 / 10</span></div><div>Bonnes réponses <span id="correct">0</span></div></div>
+        <div class="overlay hidden" id="questionOverlay" role="dialog" aria-modal="true" aria-labelledby="questionText"><div class="card"><div class="tag" id="category"></div><h2 id="questionText"></h2><div class="choices" id="choices"></div></div></div>
+        <div class="overlay" id="startOverlay"><div class="card"><div class="tag">Prêt pour la mission ?</div><h2>Chaque brique déclenche une question.</h2><p class="result-detail">Le jeu rassemble IAM, GRC, SOC et sécurité de l’IA. Utilisez les flèches ou ZQSD pour vous déplacer.</p><button id="startButton">Démarrer la partie</button></div></div>
+        <div class="overlay hidden" id="resultOverlay"><div class="card"><div class="tag">Bilan de la mission</div><h2 id="resultTitle"></h2><div class="result-score" id="resultScore"></div><p class="result-detail" id="resultText"></p><button id="restartButton">Rejouer</button></div></div>
+      </div>
+    </section>
+    <aside class="side"><h2>Objectif : 9/10</h2><p>Pour réussir, faites grandir le serpent sans toucher les murs ni vous-même.</p><ul><li>10 questions sont tirées aléatoirement dans une banque de 30.</li><li>Chaque question présente un mauvais choix, un choix presque juste et la meilleure réponse.</li><li>À plus de 8 bonnes réponses : <strong>Compétences validées</strong>.</li></ul><p>Déplacez-vous avec <span class="keys"><i>↑</i><i>←</i><i>↓</i><i>→</i></span></p></aside>
+  </main>
+  <script>
+    const questions = [
+      ['IAM','Quel est le principe du moindre privilège ?', 'Accorder les droits administrateur à tous.', 'Donner les droits utiles au poste, même s’ils sont permanents.', 'N’accorder que les droits strictement nécessaires, pour la durée nécessaire.',2],
+      ['IAM','Pourquoi utiliser l’authentification multifacteur (MFA) ?', 'Pour remplacer tous les mots de passe par un code public.', 'Pour ajouter une vérification seulement aux administrateurs.', 'Pour exiger au moins deux preuves indépendantes de l’identité.',2],
+      ['IAM','Qu’est-ce qu’un compte à privilèges ?', 'Un compte réservé aux salariés les plus anciens.', 'Un compte qui peut lire davantage de documents.', 'Un compte disposant de droits élevés sur des systèmes ou données sensibles.',2],
+      ['IAM','Quelle action est prioritaire au départ d’un collaborateur ?', 'Conserver tous ses accès pendant un mois.', 'Changer uniquement son mot de passe.', 'Désactiver rapidement ses comptes et révoquer ses accès.',2],
+      ['IAM','À quoi sert le SSO ?', 'À partager un même mot de passe entre collègues.', 'À éviter toute authentification sur les applications internes.', 'À permettre un accès à plusieurs services après une authentification centralisée.',2],
+      ['IAM','Quelle est la meilleure pratique pour les comptes de service ?', 'Utiliser un compte administrateur commun.', 'Le faire tourner avec le compte d’un développeur.', 'Lui attribuer une identité dédiée, des droits minimaux et une rotation de secrets.',2],
+      ['IAM','Quelle différence entre authentification et autorisation ?', 'Il n’y en a aucune.', 'L’authentification donne toujours tous les droits.', 'L’authentification prouve qui vous êtes ; l’autorisation définit ce que vous pouvez faire.',2],
+      ['IAM','Que doit contenir une revue périodique des accès ?', 'Seulement la liste des mots de passe.', 'Les comptes actifs, sans les droits associés.', 'La validation que chaque accès reste justifié par un responsable.',2],
+      ['GRC','Que signifie GRC ?', 'Gestion Rapide des Câbles.', 'Gouvernance des Réseaux Cloud.', 'Gouvernance, Risques et Conformité.',2],
+      ['GRC','Quel est le but d’une analyse de risque ?', 'Éliminer tous les risques immédiatement.', 'Classer les équipes selon leurs préférences.', 'Identifier, évaluer et traiter les risques qui menacent les objectifs.',2],
+      ['GRC','Qu’est-ce qu’un risque résiduel ?', 'Un risque qui n’a jamais été évalué.', 'Le risque constaté avant tout contrôle.', 'Le risque qui demeure après la mise en place des mesures de traitement.',2],
+      ['GRC','Quel rôle joue une politique de sécurité ?', 'Elle remplace les contrôles techniques.', 'Elle sert uniquement lors d’un audit externe.', 'Elle fixe les principes, responsabilités et exigences de sécurité.',2],
+      ['GRC','Qui doit accepter un risque métier important ?', 'Le stagiaire ayant détecté le risque.', 'L’équipe informatique sans informer personne.', 'Le propriétaire du risque, avec le niveau d’autorité approprié.',2],
+      ['GRC','Pourquoi conserver des preuves de conformité ?', 'Pour alourdir les dossiers.', 'Pour montrer seulement que la politique existe.', 'Pour démontrer que les contrôles sont conçus et effectivement appliqués.',2],
+      ['GRC','Quel traitement réduit la probabilité d’un risque ?', 'L’ignorer jusqu’à l’incident.', 'Le transférer sans contrat.', 'Mettre en place des contrôles préventifs adaptés.',2],
+      ['GRC','Qu’est-ce qu’un contrôle compensatoire ?', 'Un contrôle décoratif pour les audits.', 'Un contrôle identique au contrôle manquant.', 'Une mesure alternative qui réduit le risque à un niveau acceptable.',2],
+      ['SOC','Quelle est la première étape après une alerte SOC crédible ?', 'Supprimer immédiatement tous les journaux.', 'Prévenir la presse avant toute vérification.', 'Trier et qualifier l’alerte pour déterminer sa portée et sa gravité.',2],
+      ['SOC','Pourquoi centraliser les journaux dans un SIEM ?', 'Pour les effacer plus vite.', 'Pour visualiser uniquement les logs réseau.', 'Pour corréler les événements et détecter des comportements suspects.',2],
+      ['SOC','Que signifie un faux positif ?', 'Une attaque confirmée avec certitude.', 'Une alerte qui manque de détails.', 'Une alerte signalant à tort une activité malveillante.',2],
+      ['SOC','Lors d’un incident, que signifie le confinement ?', 'Arrêter définitivement tous les systèmes.', 'Masquer l’incident aux utilisateurs.', 'Limiter la propagation en isolant les actifs ou accès concernés.',2],
+      ['SOC','Pourquoi préserver les éléments de preuve ?', 'Pour pouvoir les modifier après coup.', 'Pour réduire la taille des journaux.', 'Pour permettre l’investigation et conserver leur intégrité.',2],
+      ['SOC','Quel indicateur aide à mesurer la réactivité du SOC ?', 'La couleur du tableau de bord.', 'Le nombre total de collaborateurs.', 'Le délai moyen de détection et de réponse aux incidents.',2],
+      ['SOC','Qu’est-ce qu’un playbook de réponse ?', 'Un jeu vidéo pour analystes.', 'Une liste de contacts sans action associée.', 'Une procédure répétable décrivant les étapes de traitement d’un cas.',2],
+      ['AI Security','Quel est le risque d’une injection de prompt ?', 'Le modèle devient automatiquement plus rapide.', 'L’écran de l’utilisateur change de couleur.', 'Un contenu malveillant tente de contourner les instructions du système.',2],
+      ['AI Security','Pourquoi limiter les données envoyées à un modèle d’IA ?', 'Pour empêcher le modèle de répondre.', 'Pour n’envoyer que des données publiques.', 'Pour réduire l’exposition de données sensibles et respecter la finalité.',2],
+      ['AI Security','Qu’est-ce que le data poisoning ?', 'Le nettoyage régulier d’une base de données.', 'Une erreur de saisie sans conséquence.', 'L’altération malveillante de données d’entraînement ou de référence.',2],
+      ['AI Security','Avant de déployer une IA générative, que faut-il évaluer ?', 'Uniquement la couleur de son interface.', 'Seulement son coût d’hébergement.', 'Ses risques, ses usages prévus, ses données et les contrôles nécessaires.',2],
+      ['AI Security','Comment réduire le risque de fuite via une IA ?', 'Coller toutes les données confidentielles dans le prompt.', 'Faire confiance au modèle sans paramétrage.', 'Mettre en place des règles de données, des accès contrôlés et des garde-fous.',2],
+      ['AI Security','Pourquoi surveiller les sorties d’un modèle ?', 'Pour lui apprendre à contourner les règles.', 'Pour empêcher toute réponse utile.', 'Pour détecter les réponses dangereuses, erronées ou contenant des données sensibles.',2],
+      ['AI Security','Qu’est-ce qu’un garde-fou pour une IA ?', 'Un mot de passe écrit dans le prompt.', 'Une promesse que le modèle ne fera jamais d’erreur.', 'Un contrôle qui encadre les entrées, sorties, outils ou usages du modèle.',2]
+    ];
+    const canvas = document.querySelector('#game'), ctx = canvas.getContext('2d');
+    const size = 20, cells = 30; let snake, food, direction, nextDirection, timer, active, asked, score, deck;
+    const $ = s => document.querySelector(s);
+    function shuffle(a) { return [...a].sort(() => Math.random() - .5); }
+    function reset() { snake=[{x:14,y:16},{x:13,y:16},{x:12,y:16}]; direction={x:1,y:0}; nextDirection=direction; asked=0; score=0; active=false; deck=shuffle(questions).slice(0,10); placeFood(); updateHud(); draw(); }
+    function placeFood() { do { food={x:Math.floor(Math.random()*cells),y:Math.floor(Math.random()*cells)}; } while(snake.some(p=>p.x===food.x&&p.y===food.y)); }
+    function updateHud() { $('#progress').textContent=`${asked} / 10`; $('#correct').textContent=score; }
+    function draw() { ctx.fillStyle='#07192b'; ctx.fillRect(0,0,600,600); ctx.strokeStyle='rgba(106,179,220,.08)'; ctx.lineWidth=1; for(let i=0;i<=cells;i++){ctx.beginPath();ctx.moveTo(i*size,0);ctx.lineTo(i*size,600);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*size);ctx.lineTo(600,i*size);ctx.stroke();} ctx.fillStyle='#ff6d83'; ctx.fillRect(food.x*size+3,food.y*size+3,size-6,size-6); snake.forEach((p,i)=>{ctx.fillStyle=i?'#37cdbc':'#b7fff4';ctx.fillRect(p.x*size+2,p.y*size+2,size-4,size-4)}); }
+    function tick() { if(!active) return; direction=nextDirection; const head={x:snake[0].x+direction.x,y:snake[0].y+direction.y}; if(head.x<0||head.y<0||head.x>=cells||head.y>=cells||snake.some(p=>p.x===head.x&&p.y===head.y)){ end(false); return; } snake.unshift(head); if(head.x===food.x&&head.y===food.y){ active=false; asked++; updateHud(); draw(); ask(); } else snake.pop(); draw(); }
+    function ask() { const q=deck[asked-1]; $('#category').textContent=q[0]; $('#questionText').textContent=q[1]; const choices=$('#choices'); choices.innerHTML=''; shuffle([0,1,2]).forEach(i=>{const b=document.createElement('button'); b.className='choice'; b.textContent=q[i+2]; b.onclick=()=>answer(i===q[5]); choices.appendChild(b);}); $('#questionOverlay').classList.remove('hidden'); }
+    function answer(ok) { if(ok) score++; updateHud(); $('#questionOverlay').classList.add('hidden'); if(asked===10) end(true); else { placeFood(); active=true; } }
+    function end(finished) { active=false; clearInterval(timer); const passed=score>8; $('#resultTitle').textContent=finished ? (passed?'Compétences validées':'Mission terminée') : 'Collision détectée'; $('#resultScore').textContent=`${score} / 10`; $('#resultText').textContent=finished ? (passed?'Excellent : vous avez dépassé le seuil de validation.':'Il faut plus de 8 bonnes réponses pour valider les compétences. Rejouez pour améliorer votre score.') : 'Votre partie s’arrête ici. Rejouez pour aller au bout des 10 questions.'; $('#resultOverlay').classList.remove('hidden'); }
+    function start() { reset(); $('#startOverlay').classList.add('hidden'); $('#resultOverlay').classList.add('hidden'); active=true; clearInterval(timer); timer=setInterval(tick,125); }
+    document.addEventListener('keydown',e=>{const keys={ArrowUp:[0,-1],z:[0,-1],Z:[0,-1],ArrowDown:[0,1],s:[0,1],S:[0,1],ArrowLeft:[-1,0],q:[-1,0],Q:[-1,0],ArrowRight:[1,0],d:[1,0],D:[1,0]}; if(!keys[e.key])return; e.preventDefault(); const [x,y]=keys[e.key]; if(x!==-direction.x||y!==-direction.y) nextDirection={x,y};});
+    $('#startButton').onclick=start; $('#restartButton').onclick=start; reset();
+  </script>
+</body>
+</html>
